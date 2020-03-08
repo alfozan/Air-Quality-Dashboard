@@ -8,4 +8,5 @@ Air quality dashboard for Awair sensor: https://getawair.com
 
 ### Setup
 To use dashboard, update `DEVICE_TOKEN` in https://github.com/alfozan/Air-Quality-Dashboard/blob/master/AwairDashboard.html#L281
+
 Obtain a device token from https://developer.getawair.com/console/access-token
