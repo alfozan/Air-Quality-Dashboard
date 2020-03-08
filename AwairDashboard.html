@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <title>Awair Air Quality Charts</title>
+    <meta content="text/html; charset=UTF-8" http-equiv="content-type">
+    <link rel="stylesheet" type="text/css" href="https://code.highcharts.com/css/highcharts.css">
+    <style>
+        html {
+            height: 100%;
+            background-color:black;
+        }
+        body {
+            height: 98%;
+        }
+        .chart {
+            height: 20%;
+        }
+        #container {
+            height: 100%;
+        }
+        .highcharts-background {
+            fill: black;
+        }
+        .highcharts-grid-line {
+          fill: none;
+          stroke: #707073;
+        }
+        .highcharts-xaxis-grid .highcharts-grid-line {
+          stroke-width: 1px;
+        }
+    </style>
+    <script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+    <script src="https://code.highcharts.com/stock/highstock.js"></script>
+</head>
+
+<body>
+    <div id="container"></div>
+    <script type="text/javascript">
+    // Air Quality Charts:
+    var datasets = [{
+        title: 'Temperature',
+        data: [],
+        type: 'spline',
+        unit: '°C',
+        color: Highcharts.getOptions().colors[8],
+        tickInterval: 1,
+    }, {
+        title: 'Relative Humidity',
+        data: [],
+        type: 'spline',
+        unit: '%',
+        color: Highcharts.getOptions().colors[6],
+        tickInterval: 5,
+    }, {
+        title: 'CO2',
+        data: [],
+        type: 'spline',
+        unit: 'ppm',
+        color: Highcharts.getOptions().colors[2],
+        tickInterval: 100,
+    }, {
+        title: 'Chemicals/VOC',
+        data: [],
+        type: 'spline',
+        unit: 'ppb',
+        color: Highcharts.getOptions().colors[5],
+    }, {
+        title: 'PM2.5',
+        data: [],
+        type: 'spline',
+        unit: 'µg/m³',
+        color: Highcharts.getOptions().colors[3],
+    }];
+
+    var charts = []; // chart objects
+
+    /**
+     * Highlight a point by showing tooltip, setting hover state and draw crosshair
+     */
+    Highcharts.Point.prototype.highlight = function(event) {
+        this.onMouseOver(); // Show the hover marker
+        this.series.chart.tooltip.refresh(this); // Show the tooltip
+        this.series.chart.xAxis[0].drawCrosshair(event, this); // Show the crosshair
+    };
+
+    $.each(datasets, function(i, dataset) {
+        $('#container').append($('<div>', { id: dataset.title, class: 'chart' }));
+        charts.push(Highcharts.chart({
+            chart: {
+                renderTo: dataset.title,
+                zoomType: 'x',
+                marginRight: 100, // Keep all charts left aligned
+            },
+            title: {
+                text: dataset.title,
+                align: 'left',
+                margin: 0,
+                x: 0,
+                style: {
+                    fontWeight: 'bold',
+                    fontSize: '20px',
+                    color: dataset.color,
+                }
+            },
+            xAxis: {
+                // visible: false,
+                // type: 'linear',
+                type: 'datetime',
+                ordinal: false,
+                crosshair: true,
+                title: {
+                    text: null
+                },
+                labels: {
+                    style: {
+                        color: 'white',
+                        fontWeight: 'bold'
+                    }
+                },
+                dateTimeLabelFormats: {
+                    day: "%A, %b %e, %Y",
+                    hour: '%I:%M %p',
+                    minute: '%I:%M %p',
+                    second: '%I:%M:%S %p',
+                },
+            },
+            yAxis: {
+                ordinal: false,
+                opposite: true,
+                title: {
+                    text: null
+                },
+                tickInterval: dataset.tickInterval,
+                startOnTick: false,
+                endOnTick: false,
+                labels: {
+                    format: '{value} ' + dataset.unit,
+                    style: {
+                        // fontWeight: 'bold',
+                        fontSize: '16px',
+                        color: dataset.color,
+                    }
+
+                }
+
+            },
+            series: [{
+                name: dataset.title,
+                data: dataset.data,
+                type: dataset.type,
+                color: dataset.color,
+                // fillOpacity: 0.3,
+                tooltip: {
+                    valueSuffix: ' ' + dataset.unit
+                }
+            }],
+            tooltip: {
+                shared: true,
+                borderWidth: 0,
+                pointFormat: '{point.y}',
+                shadow: false,
+                backgroundColor: 'none',
+                style: {
+                    fontSize: "14px",
+                    fontWeight: 'bold'
+                },
+                dateTimeLabelFormats: {
+                    day: "%A, %b %e, %Y",
+                    hour: '%I:%M %p',
+                    minute: '%I:%M %p',
+                    second: '%I:%M:%S %p',
+                },
+            },
+            // rangeSelector: {
+            //     buttons: [{
+            //         count: 1,
+            //         type: 'hour',
+            //         text: '1H'
+            //     }, {
+            //         count: 24,
+            //         type: 'hour',
+            //         text: '24H'
+            //     }],
+            //     enabled: true,
+            //     floating: true,
+            //     inputEnabled: false,
+            //     selected: 1,
+            // },
+            loading: {
+                labelStyle: {
+                    fontSize: "36px",
+                }
+            },
+            credits: {
+                enabled: false
+            },
+            legend: {
+                enabled: false
+            },
+        }));
+    });
+
+    // epoch time offset (from UTC to PST)
+    var UTCoffset = new Date().getTimezoneOffset();
+    Highcharts.setOptions({
+        global: {
+            timezoneOffset: UTCoffset
+        }
+    });
+
+    var xAxis_range = 86400000; // 24 h
+
+    function addPoint(chart, p) {
+        chart.series[0].addPoint(p, true, false);
+        chart.xAxis[0].setExtremes(Math.max(p[0] - xAxis_range, chart.xAxis[0].dataMin), p[0]);
+        chart.yAxis[0].setExtremes(chart.yAxis[0].dataMin, chart.yAxis[0].dataMax);
+    }
+
+    function setChartSeries(chart, data) {
+        chart.showLoading();
+        chart.series[0].update({
+            pointStart: data[0],
+            data: data,
+        }, true);
+        chart.yAxis[0].setExtremes(chart.yAxis[0].dataMin, chart.yAxis[0].dataMax);
+        chart.hideLoading();
+    }
+
+    function loadJSON(URL, DEVICE_TOKEN) {
+        var settings = {
+            "url": URL,
+            "method": "GET",
+            "headers": {
+                "Authorization": "Bearer " + DEVICE_TOKEN,
+            },
+        };
+        $.ajax(settings).done(function(response) {
+            const dimensions = 5;
+            var data_points = Array(dimensions);
+            for (var i = 0; i < dimensions; i++) {
+                data_points[i] = [];
+            }
+            $.each(response.data, function(index, value) {
+                const x = Date.parse(value.timestamp);
+                data_points[0].push([x, parseFloat(parseFloat(value.sensors[0].value).toFixed(1))]); // temp
+                data_points[1].push([x, parseFloat(parseFloat(value.sensors[1].value).toFixed(0))]); // humid
+                data_points[2].push([x, parseFloat(parseFloat(value.sensors[2].value).toFixed(0))]); // co2
+                data_points[3].push([x, parseFloat(parseFloat(value.sensors[3].value).toFixed(0))]); // voc
+                data_points[4].push([x, parseFloat(parseFloat(value.sensors[4].value).toFixed(1))]); // pm2.5
+            });
+            for (var i = 0; i < dimensions; i++) {
+                setChartSeries(charts[i], data_points[i].reverse());
+            }
+        });
+    }
+
+    function updateSeries(URL, DEVICE_TOKEN) {
+        var settings = {
+            "url": URL,
+            "method": "GET",
+            "headers": {
+                "Authorization": "Bearer " + DEVICE_TOKEN,
+            },
+        };
+        $.ajax(settings).done(function(response) {
+            $.each(response.data, function(index, value) {
+                const x = Date.parse(value.timestamp);
+                addPoint(charts[0], [x, parseFloat(parseFloat(value.sensors[0].value).toFixed(1))]); // temp
+                addPoint(charts[1], [x, parseFloat(parseFloat(value.sensors[1].value).toFixed(0))]); // humid
+                addPoint(charts[2], [x, parseFloat(parseFloat(value.sensors[2].value).toFixed(0))]); // co2
+                addPoint(charts[3], [x, parseFloat(parseFloat(value.sensors[3].value).toFixed(0))]); // voc
+                addPoint(charts[4], [x, parseFloat(parseFloat(value.sensors[4].value).toFixed(1))]); // pm2.5
+                console.log("Added an new data point at", new Date(x).toLocaleString());
+            });
+        });
+    }
+
+    // Awair device token
+    // Reference: https://developer.getawair.com/console/access-token
+    const DEVICE_TOKEN = "PASTE_TOKEN_HERE"
+    const AWAIR_API_ENDPOINT = "https://developer-apis.awair.is/v1/users/self/devices/awair-r2/3024/air-data/"
+
+    // populate charts with last 24-hours data
+    loadJSON(AWAIR_API_ENDPOINT + "5-min-avg", DEVICE_TOKEN);
+
+    // set up a timer to update charts
+    const UPDATE_INTERVAL_SECONDS = 5 * 60 // 5 min
+    setInterval(function() {
+        updateSeries(AWAIR_API_ENDPOINT + "latest", DEVICE_TOKEN);
+    }, UPDATE_INTERVAL_SECONDS * 1000);
+    </script>
+</body>
+
+</html>
