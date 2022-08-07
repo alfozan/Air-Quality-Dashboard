@@ -65,6 +65,7 @@
             unit: "°C",
             color: Highcharts.getOptions().colors[8],
             tickInterval: 1,
+            margin: [0, 0, 0, 0],
         }, {
             title: "Relative Humidity",
             data: [],
@@ -72,6 +73,7 @@
             unit: "%",
             color: Highcharts.getOptions().colors[6],
             tickInterval: 5,
+            margin: [0, 0, 0, 0],
         }, {
             title: "CO2",
             data: [],
@@ -79,18 +81,21 @@
             unit: "ppm",
             color: Highcharts.getOptions().colors[2],
             tickInterval: 100,
+            margin: [0, 0, 0, 0],
         }, {
             title: "Chemicals/VOC",
             data: [],
             type: "spline",
             unit: "ppb",
             color: Highcharts.getOptions().colors[5],
+            margin: [0, 0, 0, 0],
         }, {
             title: "PM2.5",
             data: [],
             type: "spline",
             unit: "µg/m³",
             color: Highcharts.getOptions().colors[3],
+            margin: [0, 0, 0, 0],
         }];
 
         var charts = []; // chart objects
@@ -126,10 +131,11 @@
                     text: dataset.title,
                     align: "left",
                     margin: 0,
+                    floating: true,
                     x: 0,
                     style: {
                         fontWeight: "bold",
-                        fontSize: "20px",
+                        fontSize: "28px",
                         color: dataset.color,
                     }
                 },
@@ -137,6 +143,7 @@
                     // visible: false,
                     // type: "linear",
                     type: "datetime",
+                    // tickInterval: 1 * 3600 * 1000, // 1hr
                     ordinal: false,
                     crosshair: true,
                     title: {
@@ -202,24 +209,39 @@
                         second: "%I:%M:%S %p",
                     },
                 },
+                plotOptions: {
+                    series: {
+                        marker: {
+                            enabled: false
+                        }
+                    }
+                },
                 // rangeSelector: {
                 //     buttons: [{
                 //         count: 1,
                 //         type: "hour",
                 //         text: "1H"
                 //     }, {
-                //         count: 24,
+                //         count: 3,
+                //         type: "hour",
+                //         text: "3H"
+                //     }, {
+                //         count: 12,
+                //         type: "hour",
+                //         text: "12H"
+                //     }, {
+                //         count: 23,
                 //         type: "hour",
                 //         text: "24H"
                 //     }],
                 //     enabled: true,
                 //     floating: true,
                 //     inputEnabled: false,
-                //     selected: 1,
+                //     selected: 2,
                 // },
                 loading: {
                     labelStyle: {
-                        fontSize: "36px",
+                        fontSize: "42px",
                     }
                 },
                 credits: {
@@ -239,12 +261,12 @@
             }
         });
 
-        var xAxis_range = 86400000; // 24 h
+        var xAxis_range = 24 * 60 * 60 * 1000; // 24h
 
         function addPoint(chart, p) {
             chart.series[0].addPoint(p, true, false);
             chart.xAxis[0].setExtremes(Math.max(p[0] - xAxis_range, chart.xAxis[0].dataMin), p[0]);
-            chart.yAxis[0].setExtremes(chart.yAxis[0].dataMin, chart.yAxis[0].dataMax);
+            chart.yAxis[0].setExtremes(chart.yAxis[0].dataMin, Math.max(chart.yAxis[0].dataMax, 10));
         }
 
         function setChartSeries(chart, data) {
@@ -253,57 +275,85 @@
                 pointStart: data[0],
                 data: data,
             }, true);
-            chart.yAxis[0].setExtremes(chart.yAxis[0].dataMin, chart.yAxis[0].dataMax);
+            chart.xAxis[0].setExtremes(Math.max(chart.xAxis[0].dataMax - xAxis_range, chart.xAxis[0].dataMin), chart.xAxis[0].dataMax);
+            chart.yAxis[0].setExtremes(chart.yAxis[0].dataMin, Math.max(chart.yAxis[0].dataMax, 10));
             chart.hideLoading();
         }
 
-        function loadJSON(URL, DEVICE_TOKEN) {
-            var settings = {
-                "url": URL,
-                "method": "GET",
-                "headers": {
-                    "Authorization": "Bearer " + DEVICE_TOKEN,
-                },
-            };
-            $.ajax(settings).done(function (response) {
-                const dimensions = 5;
-                var data_points = Array(dimensions);
-                for (var i = 0; i < dimensions; i++) {
-                    data_points[i] = [];
-                }
-                $.each(response.data, function (index, value) {
-                    const x = Date.parse(value.timestamp);
-                    data_points[0].push([x, parseFloat(parseFloat(value.sensors[0].value).toFixed(1))]); // temp
-                    data_points[1].push([x, parseFloat(parseFloat(value.sensors[1].value).toFixed(0))]); // humid
-                    data_points[2].push([x, parseFloat(parseFloat(value.sensors[2].value).toFixed(0))]); // co2
-                    data_points[3].push([x, parseFloat(parseFloat(value.sensors[3].value).toFixed(0))]); // voc
-                    data_points[4].push([x, parseFloat(parseFloat(value.sensors[4].value).toFixed(1))]); // pm2.5
-                });
-                for (var i = 0; i < dimensions; i++) {
-                    setChartSeries(charts[i], data_points[i].reverse());
-                }
-            });
+        function loadJSON(URL) {
+            fetch(URL, requestOptions)
+                .then(response => response.json())
+                .then(result => {
+                    const dimensions = 5;
+                    const data_points = Array(dimensions);
+                    for (var i = 0; i < dimensions; i++) {
+                        data_points[i] = [];
+                    }
+                    result.data.forEach(value => {
+                        const x = Date.parse(value.timestamp);
+
+                        const temp = value.sensors.filter(function (obj) {
+                            return (obj.comp === "temp");
+                        })[0].value;
+                        const humid = value.sensors.filter(function (obj) {
+                            return (obj.comp === "humid");
+                        })[0].value;
+                        const co2 = value.sensors.filter(function (obj) {
+                            return (obj.comp === "co2");
+                        })[0].value;
+                        const voc = value.sensors.filter(function (obj) {
+                            return (obj.comp === "voc");
+                        })[0].value;
+                        const pm25 = value.sensors.filter(function (obj) {
+                            return (obj.comp === "pm25");
+                        })[0].value;
+
+                        data_points[0].push([x, parseFloat(parseFloat(temp).toFixed(1))]); // temp
+                        data_points[1].push([x, parseFloat(parseFloat(humid).toFixed(0))]); // humid
+                        data_points[2].push([x, parseFloat(parseFloat(co2).toFixed(0))]); // co2
+                        data_points[3].push([x, parseFloat(parseFloat(voc).toFixed(0))]); // voc
+                        data_points[4].push([x, parseFloat(parseFloat(pm25).toFixed(1))]); // pm2.5
+                    });
+                    for (var i = 0; i < dimensions; i++) {
+                        setChartSeries(charts[i], data_points[i]);
+                    }
+                })
+                .catch(error => console.error("error", error));
         }
 
-        function updateSeries(URL, DEVICE_TOKEN) {
-            var settings = {
-                "url": URL,
-                "method": "GET",
-                "headers": {
-                    "Authorization": "Bearer " + DEVICE_TOKEN,
-                },
-            };
-            $.ajax(settings).done(function (response) {
-                $.each(response.data, function (index, value) {
-                    const x = Date.parse(value.timestamp);
-                    addPoint(charts[0], [x, parseFloat(parseFloat(value.sensors[0].value).toFixed(1))]); // temp
-                    addPoint(charts[1], [x, parseFloat(parseFloat(value.sensors[1].value).toFixed(0))]); // humid
-                    addPoint(charts[2], [x, parseFloat(parseFloat(value.sensors[2].value).toFixed(0))]); // co2
-                    addPoint(charts[3], [x, parseFloat(parseFloat(value.sensors[3].value).toFixed(0))]); // voc
-                    addPoint(charts[4], [x, parseFloat(parseFloat(value.sensors[4].value).toFixed(1))]); // pm2.5
-                    console.log("Added an new data point at", new Date(x).toLocaleString());
-                });
-            });
+        function updateSeries(URL) {
+            fetch(URL, requestOptions)
+                .then(response => response.json())
+                .then(result => {
+                    result.data.forEach(value => {
+                        console.log("received a new data:", result.data);
+                        const x = Date.parse(value.timestamp);
+
+                        const temp = value.sensors.filter(function (obj) {
+                            return (obj.comp === "temp");
+                        })[0].value;
+                        const humid = value.sensors.filter(function (obj) {
+                            return (obj.comp === "humid");
+                        })[0].value;
+                        const co2 = value.sensors.filter(function (obj) {
+                            return (obj.comp === "co2");
+                        })[0].value;
+                        const voc = value.sensors.filter(function (obj) {
+                            return (obj.comp === "voc");
+                        })[0].value;
+                        const pm25 = value.sensors.filter(function (obj) {
+                            return (obj.comp === "pm25");
+                        })[0].value;
+
+                        addPoint(charts[0], [x, parseFloat(parseFloat(temp).toFixed(1))]); // temp
+                        addPoint(charts[1], [x, parseFloat(parseFloat(humid).toFixed(0))]); // humid
+                        addPoint(charts[2], [x, parseFloat(parseFloat(co2).toFixed(0))]); // co2
+                        addPoint(charts[3], [x, parseFloat(parseFloat(voc).toFixed(0))]); // voc
+                        addPoint(charts[4], [x, parseFloat(parseFloat(pm25).toFixed(1))]); // pm2.5
+                        console.log("Added an new data point at", new Date(x).toLocaleString());
+                    });
+                })
+                .catch(error => console.error("error", error));
         }
 
         // Awair device token
