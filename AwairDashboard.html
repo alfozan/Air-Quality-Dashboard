@@ -369,19 +369,39 @@
                 .catch(error => console.error("error", error));
         }
 
-        // Awair device token
+        let AWAIR_API_ENDPOINT = `https://developer-apis.awair.is/v1/users/self`
+
+        // Awair Access Token
         // Reference: https://developer.getawair.com/console/access-token
-        const DEVICE_TOKEN = "PASTE_TOKEN_HERE"
-        const AWAIR_API_ENDPOINT = "https://developer-apis.awair.is/v1/users/self/devices/awair-r2/3024/air-data/"
+        const AWAIR_ACCESS_TOKEN = "PASTE_TOKEN_HERE"
+        var requestOptions = {
+            method: "GET",
+            headers: {
+                "Content-Type": "application/json",
+                "Authorization": `Bearer ${AWAIR_ACCESS_TOKEN}`
+            }
+        };
 
-        // populate charts with last 24-hours data
-        loadJSON(AWAIR_API_ENDPOINT + "5-min-avg", DEVICE_TOKEN);
+        const SELECTED_DEVICE_INDEX = 0;
+        // get devices and populate charts
+        fetch(`${AWAIR_API_ENDPOINT}/devices`, requestOptions)
+            .then(response => response.json())
+            .then(result => {
+                const SELECTED_DEVICE = result.devices[SELECTED_DEVICE_INDEX];
+                console.log("Selected device:", SELECTED_DEVICE);
+                const DEVICE_TYPE = SELECTED_DEVICE.deviceType;
+                const DEVICE_ID = SELECTED_DEVICE.deviceId;
 
-        // set up a timer to update charts
-        const UPDATE_INTERVAL_SECONDS = 5 * 60 // 5 min
-        setInterval(function () {
-            updateSeries(AWAIR_API_ENDPOINT + "latest", DEVICE_TOKEN);
-        }, UPDATE_INTERVAL_SECONDS * 1000);
+                // populate charts with last 24-hours data
+                loadJSON(`${AWAIR_API_ENDPOINT}/devices/${DEVICE_TYPE}/${DEVICE_ID}/air-data/5-min-avg`);
+
+                // set up a timer to update charts
+                const UPDATE_INTERVAL_SECONDS = 60 // 2.5 min
+                setInterval(function () {
+                    updateSeries(`${AWAIR_API_ENDPOINT}/devices/${DEVICE_TYPE}/${DEVICE_ID}/air-data/latest`);
+                }, UPDATE_INTERVAL_SECONDS * 1000);
+            })
+
     </script>
 </body>
 
