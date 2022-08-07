@@ -19,7 +19,22 @@
             height: 20%;
         }
 
-        #container {
+        .grid-container {
+            height: 80px;
+            /*background-color: gray;*/
+            border-bottom: 2px solid white;
+            display: grid;
+            grid-template-columns: auto auto auto auto auto;
+        }
+
+        .grid-item {
+            font-size: 40px;
+            text-align: center;
+            color: white;
+            vertical-align: middle;
+        }
+
+        #charts_container {
             height: 100%;
         }
 
@@ -36,12 +51,11 @@
             stroke-width: 1px;
         }
     </style>
-    <script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
     <script src="https://code.highcharts.com/stock/highstock.js"></script>
 </head>
 
 <body>
-    <div id="container"></div>
+    <div id="charts_container"></div>
     <script type="text/javascript">
         // Air Quality Charts:
         var datasets = [{
@@ -89,14 +103,24 @@
             this.series.chart.tooltip.refresh(this); // Show the tooltip
             this.series.chart.xAxis[0].drawCrosshair(event, this); // Show the crosshair
         };
+        /**
+         * Highlight a point by showing tooltip, setting hover state and draw crosshair
+         */
+        const charts_container = document.getElementById("charts_container");
+        datasets.forEach(dataset => {
+            subchart = document.createElement('div');
+            subchart.setAttribute("id", dataset.title);
+            subchart.className = "chart";
 
-        $.each(datasets, function (i, dataset) {
-            $("#container").append($("<div>", {id: dataset.title, class: "chart"}));
+            charts_container.appendChild(subchart);
             charts.push(Highcharts.chart({
                 chart: {
                     renderTo: dataset.title,
                     zoomType: "x",
-                    marginRight: 100, // Keep all charts left aligned
+                    marginRight: 80, // Keep all charts left aligned
+                },
+                accessibility: {
+                    enabled: false
                 },
                 title: {
                     text: dataset.title,
